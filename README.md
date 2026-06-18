@@ -108,7 +108,7 @@ Before you begin, ensure you have the following installed:
    ```bash
    cp .env.example .env
    ```
-   Edit the `.env` file with your configuration (see [Configuration](#configuration) section)
+   Edit the `.env` file with your configuration (see [Configuration](#-configuration) section)
 
 5. **Set up the database:**
    ```bash
@@ -384,7 +384,7 @@ We welcome contributions from the community! Here's how you can help:
 ### Development Setup
 
 1. Fork the repository and clone your fork
-2. Set up your development environment as described in [Installation](#installation)
+2. Set up your development environment as described in [Installation](#-installation)
 3. Install development dependencies:
    ```bash
    pip install -e ".[dev]"
