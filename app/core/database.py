@@ -22,38 +22,31 @@ settings = get_settings()
 
 # ── Engine ─────────────────────────────────────────────────────────────────────
 
+# app/core/database.py
+
 def _build_engine(*, testing: bool = False) -> AsyncEngine:
-    """
-    Build the async SQLAlchemy engine.
-    """
-    # Force NullPool for async operations or testing setups
-    pool_class = NullPool
+    # Neon is serverless; let's allow a managed pool in production
+    # but keep NullPool for tests if desired.
+    pool_class = NullPool if testing else None 
 
-    connect_args: dict[str, Any] = {
-        "server_settings": {"application_name": settings.APP_NAME},
-        "command_timeout": 60,
-    }
-
-    if not testing:
-        connect_args["prepared_statement_cache_size"] = 0  # avoid pgbouncer issues
-
-    # Base async parameters that work perfectly with NullPool
     engine_kwargs: dict[str, Any] = {
         "echo": settings.SQLALCHEMY_ECHO,
-        "pool_pre_ping": True,
-        "poolclass": pool_class,
-        "connect_args": connect_args,
+        "pool_pre_ping": True, # Crucial for serverless reconnections
+        "connect_args": {
+            "server_settings": {"application_name": settings.APP_NAME}
+        },
     }
 
-    # ONLY append these sizing flags if you ever switch back to an AsyncPool wrapper. 
-    # Since pool_class is NullPool, we omit them to prevent validation crashes.
-    if pool_class is not NullPool:
-        engine_kwargs["pool_size"] = settings.SQLALCHEMY_POOL_SIZE if not testing else 1
-        engine_kwargs["max_overflow"] = settings.SQLALCHEMY_MAX_OVERFLOW if not testing else 0
+    if pool_class:
+        engine_kwargs["poolclass"] = pool_class
+    else:
+        # Use Neon-friendly defaults for production
+        engine_kwargs["pool_size"] = settings.SQLALCHEMY_POOL_SIZE
+        engine_kwargs["max_overflow"] = settings.SQLALCHEMY_MAX_OVERFLOW
         engine_kwargs["pool_timeout"] = settings.SQLALCHEMY_POOL_TIMEOUT
-        engine_kwargs["pool_recycle"] = settings.SQLALCHEMY_POOL_RECYCLE
 
-    engine = create_async_engine(settings.ASYNC_DATABASE_URL, **engine_kwargs)
+    # Use the variable name from your updated config.py
+    engine = create_async_engine(settings.DATABASE_URL, **engine_kwargs)
     return engine
 
 
