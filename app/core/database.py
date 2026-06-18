@@ -1,4 +1,5 @@
 from __future__ import annotations
+import ssl
 
 from collections.abc import AsyncGenerator
 from typing import Any
@@ -22,32 +23,31 @@ settings = get_settings()
 
 # ── Engine ─────────────────────────────────────────────────────────────────────
 
-# app/core/database.py
-
 def _build_engine(*, testing: bool = False) -> AsyncEngine:
-    # Neon is serverless; let's allow a managed pool in production
-    # but keep NullPool for tests if desired.
     pool_class = NullPool if testing else None 
+    
+    # Configure SSL
+    ssl_context = ssl.create_default_context()
+    ssl_context.check_hostname = False
+    ssl_context.verify_mode = ssl.CERT_NONE
 
     engine_kwargs: dict[str, Any] = {
         "echo": settings.SQLALCHEMY_ECHO,
-        "pool_pre_ping": True, # Crucial for serverless reconnections
+        "pool_pre_ping": True,
         "connect_args": {
-            "server_settings": {"application_name": settings.APP_NAME}
+            "server_settings": {"application_name": settings.APP_NAME},
+            "ssl": ssl_context,
         },
     }
 
     if pool_class:
         engine_kwargs["poolclass"] = pool_class
     else:
-        # Use Neon-friendly defaults for production
         engine_kwargs["pool_size"] = settings.SQLALCHEMY_POOL_SIZE
         engine_kwargs["max_overflow"] = settings.SQLALCHEMY_MAX_OVERFLOW
         engine_kwargs["pool_timeout"] = settings.SQLALCHEMY_POOL_TIMEOUT
 
-    # Use the variable name from your updated config.py
-    engine = create_async_engine(settings.DATABASE_URL, **engine_kwargs)
-    return engine
+    return create_async_engine(settings.DATABASE_URL, **engine_kwargs)
 
 
 engine: AsyncEngine = _build_engine()
