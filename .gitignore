@@ -1,0 +1,39 @@
+# ── Virtual Environments ──────────────────────────────────────────────────────
+.venv/
+venv/
+ENV/
+env/
+
+# ── Environment Variables & Secrets ──────────────────────────────────────────
+# NEVER commit your live local credentials to GitHub
+.env
+.env.local
+.env.*.local
+
+# ── Python System Cache ──────────────────────────────────────────────────────
+__pycache__/
+*.py[cod]
+*$py.class
+*.egg-info/
+.eggs/
+build/
+dist/
+
+# ── Testing & Code Quality Tools ──────────────────────────────────────────────
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+
+*.md
+# ── Database & Migrations ─────────────────────────────────────────────────────
+# Keep the alembic versions folder, but ignore temporary connection logs
+alembic/*.log
+
+# ── macOS System Files ────────────────────────────────────────────────────────
+# Keeps your Mac's custom folder layout files out of the repository
+.DS_Store
+.AppleDouble
+.LSOverride
+Icon
