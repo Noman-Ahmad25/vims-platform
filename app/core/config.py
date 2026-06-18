@@ -2,11 +2,10 @@ from __future__ import annotations
 
 import secrets
 from functools import lru_cache
-from typing import Annotated, Any, Literal
+from typing import Annotated, Literal
 
-from pydantic import AnyUrl, BeforeValidator, PostgresDsn, computed_field, model_validator
+from pydantic import BeforeValidator, computed_field, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
-
 
 def _parse_cors(v: Any) -> list[str]:
     if isinstance(v, list):
@@ -14,7 +13,6 @@ def _parse_cors(v: Any) -> list[str]:
     if isinstance(v, str):
         return [origin.strip() for origin in v.split(",") if origin.strip()]
     raise ValueError(f"Invalid CORS origins value: {v!r}")
-
 
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(
@@ -39,11 +37,7 @@ class Settings(BaseSettings):
     REFRESH_TOKEN_EXPIRE_DAYS: int = 7
 
     # ── Database ──────────────────────────────────────────────────────────────
-    POSTGRES_HOST: str = "localhost"
-    POSTGRES_PORT: int = 5432
-    POSTGRES_USER: str = "postgres"
-    POSTGRES_PASSWORD: str = "postgres"
-    POSTGRES_DB: str = "volunteer_db"
+    DATABASE_URL: str
 
     SQLALCHEMY_POOL_SIZE: int = 10
     SQLALCHEMY_MAX_OVERFLOW: int = 20
@@ -53,12 +47,10 @@ class Settings(BaseSettings):
 
     # ── CORS ──────────────────────────────────────────────────────────────────
     BACKEND_CORS_ORIGINS: Annotated[list[str], BeforeValidator(_parse_cors)] = [
-        "http://localhost",
         "http://localhost:3000",
-        "http://localhost:8080",
     ]
 
-    # ── Email (optional) ──────────────────────────────────────────────────────
+    # ── Email ─────────────────────────────────────────────────────────────────
     SMTP_HOST: str | None = None
     SMTP_PORT: int = 587
     SMTP_USER: str | None = None
@@ -70,32 +62,15 @@ class Settings(BaseSettings):
     DEFAULT_PAGE_SIZE: int = 20
     MAX_PAGE_SIZE: int = 100
 
-    # ── Computed ──────────────────────────────────────────────────────────────
-    @computed_field
-    @property
-    def ASYNC_DATABASE_URL(self) -> str:
-        return (
-            f"postgresql+asyncpg://{self.POSTGRES_USER}:{self.POSTGRES_PASSWORD}"
-            f"@{self.POSTGRES_HOST}:{self.POSTGRES_PORT}/{self.POSTGRES_DB}"
-        )
-
-    @computed_field
-    @property
-    def SYNC_DATABASE_URL(self) -> str:
-        return (
-            f"postgresql+psycopg2://{self.POSTGRES_USER}:{self.POSTGRES_PASSWORD}"
-            f"@{self.POSTGRES_HOST}:{self.POSTGRES_PORT}/{self.POSTGRES_DB}"
-        )
-
     @model_validator(mode="after")
-    def _production_checks(self) -> "Settings":
+    def _production_checks(self) -> Settings:
         if self.ENVIRONMENT == "production":
-            if self.SECRET_KEY == secrets.token_urlsafe(64):
-                raise ValueError("SECRET_KEY must be explicitly set in production.")
+            # Note: Ensure these are set in your Render dashboard
+            if not self.DATABASE_URL:
+                raise ValueError("DATABASE_URL must be set in production.")
             if self.DEBUG:
                 raise ValueError("DEBUG must be False in production.")
         return self
-
 
 @lru_cache(maxsize=1)
 def get_settings() -> Settings:
