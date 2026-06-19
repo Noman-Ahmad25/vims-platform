@@ -41,7 +41,6 @@ Connect volunteers with meaningful community service opportunities through a sec
 - Clean, modular code structure
 - Comprehensive API documentation
 - Built-in testing framework
-- Docker-ready deployment
 
 ---
 
@@ -65,13 +64,10 @@ Connect volunteers with meaningful community service opportunities through a sec
 - pytest (testing)
 - Ruff (code linting)
 - mypy (static type checking)
-- Docker (containerization)
 
 **System Requirements:**
 - Python 3.10 or higher
 - PostgreSQL 13+
-- Redis (for production deployments)
-- SMTP server (for email functionality)
 
 ---
 
