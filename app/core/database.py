@@ -13,54 +13,55 @@ from sqlalchemy.ext.asyncio import (
     AsyncSession,
     async_sessionmaker,
     create_async_engine,
-)
+)   
 from sqlalchemy.orm import DeclarativeBase, MappedColumn
-from sqlalchemy.pool import NullPool
+from sqlalchemy.pool import NullPool, StaticPool
 
 from app.core.config import get_settings
 
 settings = get_settings()
 
 # ── Engine ─────────────────────────────────────────────────────────────────────
+# ── Engine ─────────────────────────────────────────────────────────────────────
 
 def _build_engine(*, testing: bool = False) -> AsyncEngine:
-    pool_class = NullPool if testing else None 
-    
-    # Configure SSL
-    ssl_context = ssl.create_default_context()
-    ssl_context.check_hostname = False
-    ssl_context.verify_mode = ssl.CERT_NONE
+    # ── CHECK FOR SQLITE/TESTING ENVIRONMENT ──
+    is_sqlite = "sqlite" in settings.DATABASE_URL
+    pool_class = NullPool if (testing or is_sqlite) else None 
 
     engine_kwargs: dict[str, Any] = {
         "echo": settings.SQLALCHEMY_ECHO,
-        "pool_pre_ping": True,
-        "connect_args": {
-            "server_settings": {"application_name": settings.APP_NAME},
-            "ssl": ssl_context,
-        },
     }
 
-    if pool_class:
-        engine_kwargs["poolclass"] = pool_class
+    if is_sqlite:
+        # SQLite-specific arguments (No SSL, no server_settings)
+        engine_kwargs["pool_pre_ping"] = False  # Not needed for local in-memory DB
+        engine_kwargs["connect_args"] = {"check_same_thread": False}
+        engine_kwargs["poolclass"] = StaticPool if not testing else pool_class
     else:
-        engine_kwargs["pool_size"] = settings.SQLALCHEMY_POOL_SIZE
-        engine_kwargs["max_overflow"] = settings.SQLALCHEMY_MAX_OVERFLOW
-        engine_kwargs["pool_timeout"] = settings.SQLALCHEMY_POOL_TIMEOUT
+        # Production PostgreSQL Configuration
+        ssl_context = ssl.create_default_context()
+        ssl_context.check_hostname = False
+        ssl_context.verify_mode = ssl.CERT_NONE
+
+        engine_kwargs["pool_pre_ping"] = True
+        engine_kwargs["connect_args"] = {
+            "server_settings": {"application_name": settings.APP_NAME},
+            "ssl": ssl_context,
+        }
+
+        if pool_class:
+            engine_kwargs["poolclass"] = pool_class
+        else:
+            engine_kwargs["pool_size"] = settings.SQLALCHEMY_POOL_SIZE
+            engine_kwargs["max_overflow"] = settings.SQLALCHEMY_MAX_OVERFLOW
+            engine_kwargs["pool_timeout"] = settings.SQLALCHEMY_POOL_TIMEOUT
 
     return create_async_engine(settings.DATABASE_URL, **engine_kwargs)
 
 
 engine: AsyncEngine = _build_engine()
 
-# ── Session factory ───────────────────────────────────────────────────────────
-
-AsyncSessionLocal: async_sessionmaker[AsyncSession] = async_sessionmaker(
-    bind=engine,
-    class_=AsyncSession,
-    expire_on_commit=False,
-    autocommit=False,
-    autoflush=False,
-)
 
 # ── Declarative base ──────────────────────────────────────────────────────────
 
